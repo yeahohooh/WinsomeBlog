@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Tags on Winsome I Write</title>
+    <link>https://example.org/tags/</link>
+    <description>Recent content in Tags on Winsome I Write</description>
+    <generator>Hugo</generator>
+    <language>zh-CN</language>
+    <copyright>This work is licensed under the MIT License.</copyright>
+    <lastBuildDate>Fri, 01 Nov 2024 18:40:15 +0800</lastBuildDate>
+    <atom:link href="https://example.org/tags/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Golang</title>
+      <link>https://example.org/tags/golang/</link>
+      <pubDate>Fri, 01 Nov 2024 18:40:15 +0800</pubDate>
+      <guid>https://example.org/tags/golang/</guid>
+      <description></description>
+    </item>
+  </channel>
+</rss>

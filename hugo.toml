@@ -3,6 +3,7 @@ languageCode = 'zh-CN'
 title = 'Winsome I Write'
 theme = "hermit-v2"
 
+publishDir = "docs"     # Hugo build 输出到 docs 文件夹
 
 pygmentsCodefences  = true
 pygmentsUseClasses  = true
