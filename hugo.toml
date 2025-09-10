@@ -1,0 +1,124 @@
+baseURL = 'https://example.org/'
+languageCode = 'zh-CN'
+title = 'Winsome I Write'
+theme = "hermit-v2"
+
+
+pygmentsCodefences  = true
+pygmentsUseClasses  = true
+#hasCJKLanguage = true
+
+rssLimit = 10
+
+copyright = "This work is licensed under the MIT License."
+enableEmoji = true
+
+#[services]
+#  [services.disqus]
+#    shortname = ''
+#  [services.googleAnalytics]
+#    id = ''
+
+[frontmatter]
+  date = ["lastmod", "date", "publishDate"]
+  lastmod = ["date", "lastmod", ":git", "publishDate"]
+  publishDate = ["publishDate", "date"]
+  expiryDate = ["expiryDate"]
+
+[params.author]
+  name = "winsome"
+
+[blackfriday]
+  # hrefTargetBlank = true
+  # noreferrerLinks = true
+  # nofollowLinks = true
+
+[taxonomies]
+  tag = "tags"
+  # Categories are disabled by default.
+  # category = "categories"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+    [markup.goldmark.extensions]
+      strikethrough = false
+      [markup.goldmark.extensions.extras]
+        [markup.goldmark.extensions.extras.insert]
+          enable = true
+        [markup.goldmark.extensions.extras.delete]
+          enable = true
+        [markup.goldmark.extensions.extras.mark]
+          enable = true
+        [markup.goldmark.extensions.extras.subscript]
+          enable = true
+        [markup.goldmark.extensions.extras.superscript]
+          enable = true
+      [markup.goldmark.extensions.passthrough]
+        enable = true
+        [markup.goldmark.extensions.passthrough.delimiters]
+          block = [['\[', '\]'], ['$$', '$$']]
+          inline = [['\(', '\)']]
+
+[params]
+  # Metadata mostly used in document's head
+  description = ""
+  # images = [""]
+  themeColor = "#494f5c"
+  accentColor = "#018472"
+
+  #homeSubtitle = ""
+  footerCopyright = ' <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener">MIT License</a>'
+  # bgImg = ""
+  # gitUrl = "https://github.com/1bl4z3r/hermit-V2/tree/staging"
+
+
+
+  justifyContent = false
+
+  relatedPosts = true
+  code_copy_button = true
+
+  homeSubtitlePrinter = true
+  scrollToTop = true 
+  global_mathjax = false
+  readTime = false
+  readTimeSeparator = "\u2026 \u23F2 Reading Time:"
+  # 文章字数统计
+  wordCount = false
+  # legacyLayout = false
+  shareSocial = true
+  # googleTagManager = "GTM-XXXXXXXX"
+  # tagSymbol = "#"
+  # categorySymbol = "⊲"
+  pinned = "Pinned Posts"
+  # pinnedSVGname = "pin"
+  listLayout = ["description","tags"] # Supported : legacy, description, categories, tags
+  # initialPublish = "Initally Posted on: "
+  human = ["single","posts"]
+
+  [params.gallery]
+    enable = true
+    thumbnail = '300'
+
+  [[params.socialLinks]]
+    name = "github"
+    url = "https://github.com/yeahohooh"
+
+[menu]
+
+  [[menu.main]]
+    name = "posts"
+    url = "posts/"
+    weight = 10
+
+  [[menu.main]]
+    name = "tags"
+    url = "tags/"
+    weight = 11
+
+  [[menu.main]]
+    name = "about"
+    url = "/about/"
+    weight = 20

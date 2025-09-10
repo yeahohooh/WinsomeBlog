@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head><meta charset="UTF-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge"><meta name="robots" content="index, follow"><meta name="author" content="winsome">
+<meta name="description" content="">
+<link rel="author" type="text/plain" href="/humans.txt">
+<link rel="manifest" href="/site.webmanifest"><link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Winsome I Write" />
+<meta name="theme-color" content="#494f5c">
+<meta name="msapplication-TileColor" content="#494f5c">
+<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#494f5c">
+
+  <meta itemprop="name" content="Mysql 主从复制 读写分离 nginx 负载均衡">
+  <meta itemprop="description" content="记录一篇流水账，关于这些配置。
+场景概述：
+服务器 A：将作为主服务器，Nginx 运行在 8080 端口。 服务器 B：将作为从服务器，Nginx 运行在 80 端口。 负载均衡目标：Nginx 实现两台服务器的流量均衡，将请求分发到两台服务器上。但写请求永远发送到主节点，读请求可以发往主或从节点。 MySQL 主从复制配置 1.1 主服务器 A（Master）的 MySQL 配置：
+修改 MySQL 配置文件 /etc/mysql/mysql.conf.d/mysqld.cnf： cd 进入该文件夹，然后 sudo nano mysqld.cnf 下面的配置如果原文件没有就添加进去 ctl &#43; o 保存，ctl &#43; x 退出 [mysqld] server-id = 1 # 唯一的服务器ID，主从服务器ID不能相同 log_bin = /var/log/mysql/mysql-bin.log # 启用二进制日志 binlog_format = row # 使用行格式日志 bind-address = 0.0.0.0 # 允许所有网络接口 port = 3306 # 端口 默认3306，可以改为别的 重启 MySQL 服务： sudo systemctl restart mysql 创建复制用户： mysql -u root -p 进入mysql CREATE USER &#39;replicator&#39;@&#39;%&#39; IDENTIFIED BY &#39;password&#39;; -- 创建复制用户 GRANT REPLICATION SLAVE ON *.* TO &#39;replicator&#39;@&#39;%&#39;; -- 赋予复制权限 FLUSH PRIVILEGES; -- 刷新权限 获取主服务器的二进制日志信息： SHOW MASTER STATUS; 记录下 File 和 Position，在从服务器配置时需要使用。">
+  <meta itemprop="datePublished" content="2024-10-25T18:36:33+08:00">
+  <meta itemprop="dateModified" content="2024-10-25T18:36:33+08:00">
+  <meta itemprop="wordCount" content="602">
+  <meta itemprop="keywords" content="Golang"><meta property="og:url" content="https://example.org/posts/mysql%E4%B8%BB%E4%BB%8E%E5%A4%8D%E5%88%B6%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BBnginx%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1/">
+  <meta property="og:site_name" content="Winsome I Write">
+  <meta property="og:title" content="Mysql 主从复制 读写分离 nginx 负载均衡">
+  <meta property="og:description" content="记录一篇流水账，关于这些配置。
+场景概述：
+服务器 A：将作为主服务器，Nginx 运行在 8080 端口。 服务器 B：将作为从服务器，Nginx 运行在 80 端口。 负载均衡目标：Nginx 实现两台服务器的流量均衡，将请求分发到两台服务器上。但写请求永远发送到主节点，读请求可以发往主或从节点。 MySQL 主从复制配置 1.1 主服务器 A（Master）的 MySQL 配置：
+修改 MySQL 配置文件 /etc/mysql/mysql.conf.d/mysqld.cnf： cd 进入该文件夹，然后 sudo nano mysqld.cnf 下面的配置如果原文件没有就添加进去 ctl &#43; o 保存，ctl &#43; x 退出 [mysqld] server-id = 1 # 唯一的服务器ID，主从服务器ID不能相同 log_bin = /var/log/mysql/mysql-bin.log # 启用二进制日志 binlog_format = row # 使用行格式日志 bind-address = 0.0.0.0 # 允许所有网络接口 port = 3306 # 端口 默认3306，可以改为别的 重启 MySQL 服务： sudo systemctl restart mysql 创建复制用户： mysql -u root -p 进入mysql CREATE USER &#39;replicator&#39;@&#39;%&#39; IDENTIFIED BY &#39;password&#39;; -- 创建复制用户 GRANT REPLICATION SLAVE ON *.* TO &#39;replicator&#39;@&#39;%&#39;; -- 赋予复制权限 FLUSH PRIVILEGES; -- 刷新权限 获取主服务器的二进制日志信息： SHOW MASTER STATUS; 记录下 File 和 Position，在从服务器配置时需要使用。">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="posts">
+    <meta property="article:published_time" content="2024-10-25T18:36:33+08:00">
+    <meta property="article:modified_time" content="2024-10-25T18:36:33+08:00">
+    <meta property="article:tag" content="Golang">
+
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Mysql 主从复制 读写分离 nginx 负载均衡">
+  <meta name="twitter:description" content="记录一篇流水账，关于这些配置。
+场景概述：
+服务器 A：将作为主服务器，Nginx 运行在 8080 端口。 服务器 B：将作为从服务器，Nginx 运行在 80 端口。 负载均衡目标：Nginx 实现两台服务器的流量均衡，将请求分发到两台服务器上。但写请求永远发送到主节点，读请求可以发往主或从节点。 MySQL 主从复制配置 1.1 主服务器 A（Master）的 MySQL 配置：
+修改 MySQL 配置文件 /etc/mysql/mysql.conf.d/mysqld.cnf： cd 进入该文件夹，然后 sudo nano mysqld.cnf 下面的配置如果原文件没有就添加进去 ctl &#43; o 保存，ctl &#43; x 退出 [mysqld] server-id = 1 # 唯一的服务器ID，主从服务器ID不能相同 log_bin = /var/log/mysql/mysql-bin.log # 启用二进制日志 binlog_format = row # 使用行格式日志 bind-address = 0.0.0.0 # 允许所有网络接口 port = 3306 # 端口 默认3306，可以改为别的 重启 MySQL 服务： sudo systemctl restart mysql 创建复制用户： mysql -u root -p 进入mysql CREATE USER &#39;replicator&#39;@&#39;%&#39; IDENTIFIED BY &#39;password&#39;; -- 创建复制用户 GRANT REPLICATION SLAVE ON *.* TO &#39;replicator&#39;@&#39;%&#39;; -- 赋予复制权限 FLUSH PRIVILEGES; -- 刷新权限 获取主服务器的二进制日志信息： SHOW MASTER STATUS; 记录下 File 和 Position，在从服务器配置时需要使用。">
+
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": "Mysql 主从复制 读写分离 nginx 负载均衡",
+    "name": "Mysql 主从复制 读写分离 nginx 负载均衡",
+    "description": "记录一篇流水账，关于这些配置。\n场景概述：\n服务器 A：将作为主服务器，Nginx 运行在 8080 端口。 服务器 B：将作为从服务器，Nginx 运行在 80 端口。 负载均衡目标：Nginx 实现两台服务器的流量均衡，将请求分发到两台服务器上。但写请求永远发送到主节点，读请求可以发往主或从节点。 MySQL 主从复制配置 1.1 主服务器 A（Master）的 MySQL 配置：\n修改 MySQL 配置文件 /etc/mysql/mysql.conf.d/mysqld.cnf： cd 进入该文件夹，然后 sudo nano mysqld.cnf 下面的配置如果原文件没有就添加进去 ctl + o 保存，ctl + x 退出 [mysqld] server-id = 1 # 唯一的服务器ID，主从服务器ID不能相同 log_bin = /var/log/mysql/mysql-bin.log # 启用二进制日志 binlog_format = row # 使用行格式日志 bind-address = 0.0.0.0 # 允许所有网络接口 port = 3306 # 端口 默认3306，可以改为别的 重启 MySQL 服务： sudo systemctl restart mysql 创建复制用户： mysql -u root -p 进入mysql CREATE USER \u0026#39;replicator\u0026#39;@\u0026#39;%\u0026#39; IDENTIFIED BY \u0026#39;password\u0026#39;; -- 创建复制用户 GRANT REPLICATION SLAVE ON *.* TO \u0026#39;replicator\u0026#39;@\u0026#39;%\u0026#39;; -- 赋予复制权限 FLUSH PRIVILEGES; -- 刷新权限 获取主服务器的二进制日志信息： SHOW MASTER STATUS; 记录下 File 和 Position，在从服务器配置时需要使用。\n",
+    "keywords": ["Golang"],
+    "articleBody": "记录一篇流水账，关于这些配置。\n场景概述：\n服务器 A：将作为主服务器，Nginx 运行在 8080 端口。 服务器 B：将作为从服务器，Nginx 运行在 80 端口。 负载均衡目标：Nginx 实现两台服务器的流量均衡，将请求分发到两台服务器上。但写请求永远发送到主节点，读请求可以发往主或从节点。 MySQL 主从复制配置 1.1 主服务器 A（Master）的 MySQL 配置：\n修改 MySQL 配置文件 /etc/mysql/mysql.conf.d/mysqld.cnf： cd 进入该文件夹，然后 sudo nano mysqld.cnf 下面的配置如果原文件没有就添加进去 ctl + o 保存，ctl + x 退出 [mysqld] server-id = 1 # 唯一的服务器ID，主从服务器ID不能相同 log_bin = /var/log/mysql/mysql-bin.log # 启用二进制日志 binlog_format = row # 使用行格式日志 bind-address = 0.0.0.0 # 允许所有网络接口 port = 3306 # 端口 默认3306，可以改为别的 重启 MySQL 服务： sudo systemctl restart mysql 创建复制用户： mysql -u root -p 进入mysql CREATE USER 'replicator'@'%' IDENTIFIED BY 'password'; -- 创建复制用户 GRANT REPLICATION SLAVE ON *.* TO 'replicator'@'%'; -- 赋予复制权限 FLUSH PRIVILEGES; -- 刷新权限 获取主服务器的二进制日志信息： SHOW MASTER STATUS; 记录下 File 和 Position，在从服务器配置时需要使用。\n1.2 从服务器 B（Slave）的 MySQL 配置：\n修改 MySQL 配置文件 /etc/mysql/mysql.conf.d/mysqld.cnf： [mysqld] server-id = 2 # 从服务器的ID，与主服务器不同 relay-log = /var/log/mysql/mysql-relay-bin # 启用中继日志 bind-address = 0.0.0.0 # 允许所有网络接口 port = 3306 # 端口 默认3306，可以改为别的 重启 MySQL 服务： sudo systemctl restart mysql 配置从服务器复制： 登录 MySQL 后执行： CHANGE MASTER TO MASTER_HOST='A的IP地址', -- 主服务器的IP地址 MASTER_USER='replicator', -- 复制用户 MASTER_PASSWORD='password', -- 复制用户的密码 MASTER_LOG_FILE='记录的File', -- 主服务器的二进制日志文件 MASTER_LOG_POS=记录的Position; -- 主服务器的日志位置 START SLAVE; -- 启动复制 检查复制状态： SHOW SLAVE STATUS\\G; 确保 Slave_IO_Running 和 Slave_SQL_Running 都是 Yes。\n应用层的读写分离 Gorm 的 DBResolver 是一个非常有用的插件，能够帮助我们实现数据库的读写分离\n安装 Gorm DBResolver 插件 在使用 DBResolver 前，需要确保安装了 Gorm 的 DBResolver 插件： go get gorm.io/plugin/dbresolver 基本配置 配置主库和从库 自动区分读操作与写操作 支持设置主从数据库的负载均衡策略 代码示例\npackage main import ( \"fmt\" \"gorm.io/driver/mysql\" \"gorm.io/gorm\" \"gorm.io/plugin/dbresolver\" ) // 初始化数据库连接 func initDB() (*gorm.DB, error) { // 主库的 DSN masterDSN := \"root:password@tcp(master-db:3306)/dbname?charset=utf8mb4\u0026parseTime=True\u0026loc=Local\" // 从库的 DSN slave1DSN := \"root:password@tcp(slave1-db:3306)/dbname?charset=utf8mb4\u0026parseTime=True\u0026loc=Local\" slave2DSN := \"root:password@tcp(slave2-db:3306)/dbname?charset=utf8mb4\u0026parseTime=True\u0026loc=Local\" // 连接主库 db, err := gorm.Open(mysql.Open(masterDSN), \u0026gorm.Config{}) if err != nil { return nil, err } // 配置读写分离 db.Use(dbresolver.Register(dbresolver.Config{ // 主库，用于写操作 Sources: []gorm.Dialector{mysql.Open(masterDSN)}, // 从库，用于读操作 Replicas: []gorm.Dialector{ mysql.Open(slave1DSN), mysql.Open(slave2DSN), }, // 负载均衡策略，默认是随机选择一个从库 Policy: dbresolver.RandomPolicy{}, }).SetMaxOpenConns(10).SetMaxIdleConns(5)) return db, nil } // 模型 type User struct { ID uint Name string } func main() { // 初始化数据库 db, err := initDB() if err != nil { panic(fmt.Sprintf(\"failed to connect to DB: %v\", err)) } // 写操作（插入数据）会使用主库 user := User{Name: \"Alice\"} db.Create(\u0026user) // 读操作（查询数据）会使用从库 var users []User db.Find(\u0026users) fmt.Println(\"用户数据：\", users) } Nginx 负载均衡配置 服务器 A 的 Nginx 配置：\n新建 /etc/nginx/sites-available/load_balancer.conf： upstream go_backend { server 127.0.0.1:8082; # 本地 Go 服务 server B的公网IP:80; # 负载到服务器B上的 Go 服务 } server { listen 8080; # 对外暴露的端口 server_name A的公网IP; # 服务器A的公网IP location / { proxy_pass http://go_backend; # 反向代理到 go_backend 上游 proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; } } 重启 Nginx： // 创建符号链接将这个站点启用 sudo ln -s /etc/nginx/sites-available/load_balancer.conf /etc/nginx/sites-enabled/ // 测试 Nginx 配置是否有错误 sudo nginx -t // 重启 sudo systemctl restart nginx 服务器 B 的 Nginx 配置：\n新建 /etc/nginx/sites-available/load_balancer.conf： server { listen 80; # 对外暴露的端口 server_name B的公网IP; # 服务器B的公网IP location / { proxy_pass http://127.0.0.1:8082; # 反向代理到本地 Go 服务 proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; } } 重启 Nginx： // 创建符号链接将这个站点启用 sudo ln -s /etc/nginx/sites-available/load_balancer.conf /etc/nginx/sites-enabled/ // 测试 Nginx 配置是否有错误 sudo nginx -t // 重启 sudo systemctl restart nginx 可能产生的错误 在 mysql 创建用户的时候，注意权限问题，有的权限复制过来的结构不全， // 赋予用户'replicator'所有权限 GRANT ALL PRIVILEGES ON *.* TO 'replicator'@'%'; // 这里的 ALL PRIVILEGES 可以根据需求调整，如果你只需要备份和复制操作，可以改成更有限的权限，例如 GRANT SELECT, RELOAD, LOCK TABLES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'replicator'@'%'; // ON 后面可以写成指定的 database GRANT ALL PRIVILEGES ON databaseName.* TO 'replicator'@'%'; // '%' 指允许所有 ip，可以替换成允许指定的 ip，生产环境建议这么做 GRANT ALL PRIVILEGES ON *.* TO 'replicator'@'IP地址'; 注意防火墙配置，还有 mysql 配置的 bind-address 是否有限制 从库一定不能填错主库的 File 和 Position 从库在 SHOW SLAVE STATUS\\G; 检查的时候，如果有 Last_SQL_Error 错误，也可以查看排查问题 mysql\u003e select * from performance_schema.replication_applier_status_by_worker\\G 在配置基本都对的情况，有的时候 Slave_SQL_Running 为 NO，很有可能是用户权限不够导致的，或者从库和主库的表结构不一致，可以将主库的内容整体复制过来，也可以只复制表结构 // 手动复制主库 mysqldump -h 主服务器IP -u用户名 -p密码 --all-databases \u003e backup.sql // nodata mysqldump -h 主服务器IP -u用户名 -p密码 --no-data --all- databases \u003e backup.sql // 指定某个database mysqldump -h 主服务器IP -u用户名 -p密码 -databaseName \u003e backup.sql // 导入从库 mysql -h 从服务器IP -u用户名 -p密码 \u003c backup.sql nginx 负载均衡的时候注意不要端口冲突 注意 nginx 的 default 配置，有的时候可能会占用 80 端口，可以将 default 文件删除，用我们自己的 conf 就好 sudo rm /etc/nginx/sites-enabled/default ",
+    "wordCount" : "602",
+    "inLanguage": "en",
+    "datePublished": "2024-10-25T18:36:33+08:00",
+    "dateModified": "2024-10-25T18:36:33+08:00",
+    "author":{
+        "@type": "Person",
+        "name": "winsome",},
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "https://example.org/posts/mysql%E4%B8%BB%E4%BB%8E%E5%A4%8D%E5%88%B6%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BBnginx%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1/"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Winsome I Write",
+      "description": "",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://example.org/favicon.ico"
+      }
+    }
+}
+</script><title>Mysql 主从复制 读写分离 nginx 负载均衡</title><link rel="stylesheet dns-prefetch preconnect preload prefetch" as="style" media="screen" href="https://example.org/css/style.min.db063592c815d64ffa74f8ce6232780675c795801c22e40fdad7a2349afadfc5.css" integrity="sha256-2wY1ksgV1k/6dPjOYjJ4BnXHlYAcIuQP2teiNJr638U=" crossorigin="anonymous">
+	</head>
+
+<body id="page">
+<header id="site-header">
+	<div class="hdr-wrapper section-inner">
+		<div class="hdr-left">
+			<div class="site-branding">
+				<a href="https://example.org/">Winsome I Write</a>
+			</div>
+			<nav class="site-nav hide-in-mobile"><a href="https://example.org/posts/">posts</a><a href="https://example.org/tags/">tags</a><a href="https://example.org/about/">about</a></nav>
+		</div>
+		<div class="hdr-right hdr-icons">
+			<button id="toc-btn" class="hdr-btn desktop-only-ib" title="Table Of Contents"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-list">
+      <line x1="8" y1="6" x2="21" y2="6"></line>
+      <line x1="8" y1="12" x2="21" y2="12"></line>
+      <line x1="8" y1="18" x2="21" y2="18"></line>
+      <line x1="3" y1="6" x2="3" y2="6"></line>
+      <line x1="3" y1="12" x2="3" y2="12"></line>
+      <line x1="3" y1="18" x2="3" y2="18"></line>
+   </svg></button><span class="hdr-links hide-in-mobile"><a href="https://github.com/yeahohooh" target="_blank" rel="noopener me" title="Github"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="none"
+   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+   <path
+      d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22">
+   </path>
+</svg></a></span><button id="share-btn" class="hdr-btn" title=""><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-share-2">
+      <circle cx="18" cy="5" r="3"></circle>
+      <circle cx="6" cy="12" r="3"></circle>
+      <circle cx="18" cy="19" r="3"></circle>
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+   </svg></button>
+ 
+<div id="share-links" class="animated fast">
+    
+    
+    
+    
+    <ul>
+        <li>
+            <a href="https://twitter.com/intent/tweet?hashtags=hermit2&amp;url=https%3a%2f%2fexample.org%2fposts%2fmysql%25E4%25B8%25BB%25E4%25BB%258E%25E5%25A4%258D%25E5%2588%25B6%25E8%25AF%25BB%25E5%2586%2599%25E5%2588%2586%25E7%25A6%25BBnginx%25E8%25B4%259F%25E8%25BD%25BD%25E5%259D%2587%25E8%25A1%25A1%2f&amp;text=Mysql%20%e4%b8%bb%e4%bb%8e%e5%a4%8d%e5%88%b6%20%e8%af%bb%e5%86%99%e5%88%86%e7%a6%bb%20nginx%20%e8%b4%9f%e8%bd%bd%e5%9d%87%e8%a1%a1" target="_blank" rel="noopener" aria-label="Share on X"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="none"
+   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+   <path class="st0" d="m21.3 21.1 -11.4 -18.2h-7.2l11.4 18.2zm-18.6 0 7.2 -6.6m4.2 -5 7.2 -6.6" />
+</svg></a>
+        </li>
+        <li>
+            <a href="https://facebook.com/sharer/sharer.php?u=https%3a%2f%2fexample.org%2fposts%2fmysql%25E4%25B8%25BB%25E4%25BB%258E%25E5%25A4%258D%25E5%2588%25B6%25E8%25AF%25BB%25E5%2586%2599%25E5%2588%2586%25E7%25A6%25BBnginx%25E8%25B4%259F%25E8%25BD%25BD%25E5%259D%2587%25E8%25A1%25A1%2f" target="_blank" rel="noopener" aria-label="Share on Facebook"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="none"
+   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+   <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
+</svg></a>
+        </li>
+        <li>
+            <a href="https://www.threads.net/intent/post?text=Mysql%20%e4%b8%bb%e4%bb%8e%e5%a4%8d%e5%88%b6%20%e8%af%bb%e5%86%99%e5%88%86%e7%a6%bb%20nginx%20%e8%b4%9f%e8%bd%bd%e5%9d%87%e8%a1%a1&amp;url=https%3a%2f%2fexample.org%2fposts%2fmysql%25E4%25B8%25BB%25E4%25BB%258E%25E5%25A4%258D%25E5%2588%25B6%25E8%25AF%25BB%25E5%2586%2599%25E5%2588%2586%25E7%25A6%25BBnginx%25E8%25B4%259F%25E8%25BD%25BD%25E5%259D%2587%25E8%25A1%25A1%2f" target="_blank" rel="noopener" aria-label="Share on threads"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.589 12c.027 3.086.718 5.496 2.057 7.164 1.43 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.964-.065-1.19.408-2.285 1.33-3.082.88-.76 2.119-1.207 3.583-1.291a14 14 0 0 1 3.02.142c-.126-.742-.375-1.332-.75-1.757-.513-.586-1.308-.883-2.359-.89h-.029c-.844 0-1.992.232-2.721 1.32l-1.757-1.18c.98-1.454 2.568-2.256 4.478-2.256h.044c3.194.02 5.097 1.975 5.287 5.388q.163.07.321.142c1.49.7 2.58 1.761 3.154 3.07.797 1.82.871 4.79-1.548 7.158-1.85 1.81-4.094 2.628-7.277 2.65Zm1.003-11.69q-.362 0-.739.021c-1.836.103-2.98.946-2.916 2.143.067 1.256 1.452 1.839 2.784 1.767 1.224-.065 2.818-.543 3.086-3.71a10.5 10.5 0 0 0-2.215-.221"/></svg></a>
+        </li>
+        <li>
+            <a href="https://bsky.app/intent/compose?text=https%3a%2f%2fexample.org%2fposts%2fmysql%25E4%25B8%25BB%25E4%25BB%258E%25E5%25A4%258D%25E5%2588%25B6%25E8%25AF%25BB%25E5%2586%2599%25E5%2588%2586%25E7%25A6%25BBnginx%25E8%25B4%259F%25E8%25BD%25BD%25E5%259D%2587%25E8%25A1%25A1%2f" target="_blank" rel="noopener" aria-label="Share on bluesky"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-archive">
+   <path
+      d="M12,10.899c-0.995,-1.934 -3.704,-5.54 -6.223,-7.318c-2.412,-1.703 -3.333,-1.408 -3.936,-1.136c-0.699,0.316 -0.826,1.388 -0.826,2.019c0,0.631 0.346,5.173 0.572,5.931c0.745,2.504 3.399,3.351 5.842,3.079c0.125,-0.018 0.252,-0.035 0.38,-0.051c-0.126,0.02 -0.252,0.037 -0.38,0.051c-3.581,0.531 -6.761,1.836 -2.59,6.48c4.589,4.75 6.289,-1.019 7.161,-3.944c0.872,2.925 1.877,8.486 7.079,3.944c3.906,-3.944 1.073,-5.949 -2.508,-6.48c-0.128,-0.014 -0.254,-0.031 -0.38,-0.051c0.128,0.016 0.255,0.033 0.38,0.051c2.443,0.272 5.097,-0.574 5.842,-3.079c0.226,-0.758 0.572,-5.3 0.572,-5.931c-0,-0.63 -0.127,-1.703 -0.826,-2.018c-0.603,-0.273 -1.524,-0.568 -3.936,1.135c-2.519,1.778 -5.228,5.384 -6.223,7.318Z" />
+</svg></a>
+        </li>
+        <li>
+            <a href="mailto:?subject=Mysql%20%e4%b8%bb%e4%bb%8e%e5%a4%8d%e5%88%b6%20%e8%af%bb%e5%86%99%e5%88%86%e7%a6%bb%20nginx%20%e8%b4%9f%e8%bd%bd%e5%9d%87%e8%a1%a1&amp;body=https%3a%2f%2fexample.org%2fposts%2fmysql%25E4%25B8%25BB%25E4%25BB%258E%25E5%25A4%258D%25E5%2588%25B6%25E8%25AF%25BB%25E5%2586%2599%25E5%2588%2586%25E7%25A6%25BBnginx%25E8%25B4%259F%25E8%25BD%25BD%25E5%259D%2587%25E8%25A1%25A1%2f" target="_self" rel="noopener" aria-label="Share on Email"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="none"
+   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+   <polyline points="22,6 12,13 2,6"></polyline>
+</svg></a>
+        </li>
+        <li>
+            <a href="https://www.linkedin.com/shareArticle?mini=true&amp;url=https%3a%2f%2fexample.org%2fposts%2fmysql%25E4%25B8%25BB%25E4%25BB%258E%25E5%25A4%258D%25E5%2588%25B6%25E8%25AF%25BB%25E5%2586%2599%25E5%2588%2586%25E7%25A6%25BBnginx%25E8%25B4%259F%25E8%25BD%25BD%25E5%259D%2587%25E8%25A1%25A1%2f&amp;source=https%3a%2f%2fexample.org%2f&amp;title=Mysql%20%e4%b8%bb%e4%bb%8e%e5%a4%8d%e5%88%b6%20%e8%af%bb%e5%86%99%e5%88%86%e7%a6%bb%20nginx%20%e8%b4%9f%e8%bd%bd%e5%9d%87%e8%a1%a1&amp;summary=Mysql%20%e4%b8%bb%e4%bb%8e%e5%a4%8d%e5%88%b6%20%e8%af%bb%e5%86%99%e5%88%86%e7%a6%bb%20nginx%20%e8%b4%9f%e8%bd%bd%e5%9d%87%e8%a1%a1%2c%20by%20winsome%0a%0a%3cnil%3e%0a" target="_blank" rel="noopener" aria-label="Share on LinkedIn"><svg xmlns="http://www.w3.org/2000/svg" class="feather" width="24" height="24" viewBox="0 0 24 24" fill="none"
+   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+   <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+   <rect x="2" y="9" width="4" height="12"></rect>
+   <circle cx="4" cy="4" r="2"></circle>
+</svg></a>
+        </li>
+        <li>
+            <a href="#" onclick="linkShare(&#34;Mysql 主从复制 读写分离 nginx 负载均衡&#34;,&#34;https://example.org/posts/mysql%E4%B8%BB%E4%BB%8E%E5%A4%8D%E5%88%B6%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BBnginx%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1/&#34;,&#34;Mysql 主从复制 读写分离 nginx 负载均衡, by winsome\n\n\u003cnil\u003e\n&#34;); return false;" target="_self" rel="noopener" aria-label="Copy Link"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-copy">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+   </svg></a>
+        </li>
+    </ul>
+</div><button id="menu-btn" class="hdr-btn" title="Menu"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+   </svg></button>
+		</div>
+	</div>
+</header>
+<div id="mobile-menu" class="animated fast">
+	<ul>
+		<li><a href="https://example.org/posts/">posts</a></li>
+		<li><a href="https://example.org/tags/">tags</a></li>
+		<li><a href="https://example.org/about/">about</a></li>
+	</ul>
+</div>
+
+	<main class="site-main section-inner animated fadeIn faster"><article class="thin">
+			<header class="post-header">
+				<div class="post-date"><span>Oct 25, 2024</span></div>
+				<h1>Mysql 主从复制 读写分离 nginx 负载均衡</h1>
+			</header>
+			<div class="post-description"><p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-feather">
+   <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path>
+   <line x1="16" y1="8" x2="2" y2="22"></line>
+   <line x1="17.5" y1="15" x2="9" y2="15"></line>
+</svg>winsome</p>
+<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-tag meta-icon">
+      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+      <line x1="7" y1="7" x2="7" y2="7"></line>
+   </svg><span class="tag"><a href="https://example.org/tags/golang">Golang</a></span></p>
+<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-file-text">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+      <polyline points="14 2 14 8 20 8"></polyline>
+      <line x1="16" y1="13" x2="8" y2="13"></line>
+      <line x1="16" y1="17" x2="8" y2="17"></line>
+      <polyline points="10 9 9 9 8 9"></polyline>
+   </svg>602&nbsp  </p>
+<p><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-calendar">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+      <line x1="16" y1="2" x2="16" y2="6"></line>
+      <line x1="8" y1="2" x2="8" y2="6"></line>
+      <line x1="3" y1="10" x2="21" y2="10"></line>
+   </svg>2024-10-25 18:36 &#43;0800
+</p></div>
+			<hr class="post-end">
+			<div class="content">
+				 <p>记录一篇流水账，关于这些配置。</p>
+<p>场景概述：</p>
+<ul>
+<li>服务器 A：将作为主服务器，Nginx 运行在 8080 端口。</li>
+<li>服务器 B：将作为从服务器，Nginx 运行在 80 端口。</li>
+<li>负载均衡目标：Nginx 实现两台服务器的流量均衡，将请求分发到两台服务器上。但写请求永远发送到主节点，读请求可以发往主或从节点。</li>
+</ul>
+<h3 id="mysql-主从复制配置">MySQL 主从复制配置<a href="#mysql-%e4%b8%bb%e4%bb%8e%e5%a4%8d%e5%88%b6%e9%85%8d%e7%bd%ae" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path>
+      <line x1="8" y1="12" x2="16" y2="12"></line>
+   </svg></a></h3>
+<p>1.1 主服务器 A（Master）的 MySQL 配置：</p>
+<ol>
+<li>修改 MySQL 配置文件 /etc/mysql/mysql.conf.d/mysqld.cnf：</li>
+</ol>
+<ul>
+<li>cd 进入该文件夹，然后 <code>sudo nano mysqld.cnf</code></li>
+<li>下面的配置如果原文件没有就添加进去</li>
+<li>ctl + o 保存，ctl + x 退出</li>
+</ul>
+<pre tabindex="0"><code>[mysqld]
+server-id = 1                   # 唯一的服务器ID，主从服务器ID不能相同
+log_bin = /var/log/mysql/mysql-bin.log  # 启用二进制日志
+binlog_format = row             # 使用行格式日志
+bind-address    = 0.0.0.0       # 允许所有网络接口
+port            = 3306          # 端口 默认3306，可以改为别的
+</code></pre><ol start="2">
+<li>重启 MySQL 服务：</li>
+</ol>
+<pre tabindex="0"><code>sudo systemctl restart mysql
+</code></pre><ol start="3">
+<li>创建复制用户：
+<code>mysql -u root -p</code> 进入mysql</li>
+</ol>
+<pre tabindex="0"><code>CREATE USER &#39;replicator&#39;@&#39;%&#39; IDENTIFIED BY &#39;password&#39;;  -- 创建复制用户
+GRANT REPLICATION SLAVE ON *.* TO &#39;replicator&#39;@&#39;%&#39;;     -- 赋予复制权限
+FLUSH PRIVILEGES;                                    -- 刷新权限
+</code></pre><ol start="4">
+<li>获取主服务器的二进制日志信息：</li>
+</ol>
+<pre tabindex="0"><code>SHOW MASTER STATUS;
+</code></pre><p><strong>记录下 File 和 Position，在从服务器配置时需要使用。</strong></p>
+<p>1.2 从服务器 B（Slave）的 MySQL 配置：</p>
+<ol>
+<li>修改 MySQL 配置文件 /etc/mysql/mysql.conf.d/mysqld.cnf：</li>
+</ol>
+<pre tabindex="0"><code>[mysqld]
+server-id = 2                   # 从服务器的ID，与主服务器不同
+relay-log = /var/log/mysql/mysql-relay-bin  # 启用中继日志
+bind-address = 0.0.0.0       # 允许所有网络接口
+port = 3306                  # 端口 默认3306，可以改为别的
+</code></pre><ol start="2">
+<li>重启 MySQL 服务：</li>
+</ol>
+<pre tabindex="0"><code>sudo systemctl restart mysql
+</code></pre><ol start="3">
+<li>配置从服务器复制： 登录 MySQL 后执行：</li>
+</ol>
+<pre tabindex="0"><code>CHANGE MASTER TO
+    MASTER_HOST=&#39;A的IP地址&#39;,      -- 主服务器的IP地址
+    MASTER_USER=&#39;replicator&#39;,        -- 复制用户
+    MASTER_PASSWORD=&#39;password&#39;,   -- 复制用户的密码
+    MASTER_LOG_FILE=&#39;记录的File&#39;,  -- 主服务器的二进制日志文件
+    MASTER_LOG_POS=记录的Position; -- 主服务器的日志位置
+START SLAVE;                      -- 启动复制
+</code></pre><ol start="4">
+<li>检查复制状态：</li>
+</ol>
+<pre tabindex="0"><code>SHOW SLAVE STATUS\G;
+</code></pre><p>确保 Slave_IO_Running 和 Slave_SQL_Running 都是 Yes。</p>
+<h3 id="应用层的读写分离">应用层的读写分离<a href="#%e5%ba%94%e7%94%a8%e5%b1%82%e7%9a%84%e8%af%bb%e5%86%99%e5%88%86%e7%a6%bb" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path>
+      <line x1="8" y1="12" x2="16" y2="12"></line>
+   </svg></a></h3>
+<p>Gorm 的 DBResolver 是一个非常有用的插件，能够帮助我们实现数据库的读写分离</p>
+<ol>
+<li>安装 Gorm DBResolver 插件
+在使用 DBResolver 前，需要确保安装了 Gorm 的 DBResolver 插件：</li>
+</ol>
+<pre tabindex="0"><code>go get gorm.io/plugin/dbresolver
+</code></pre><ol start="2">
+<li>基本配置</li>
+</ol>
+<ul>
+<li>配置主库和从库</li>
+<li>自动区分读操作与写操作</li>
+<li>支持设置主从数据库的负载均衡策略</li>
+</ul>
+<p><strong>代码示例</strong></p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="line"><span class="cl"><span class="kn">package</span><span class="w"> </span><span class="nx">main</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kn">import</span><span class="w"> </span><span class="p">(</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;fmt&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;gorm.io/driver/mysql&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;gorm.io/gorm&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="s">&#34;gorm.io/plugin/dbresolver&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// 初始化数据库连接</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">func</span><span class="w"> </span><span class="nf">initDB</span><span class="p">()</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="nx">gorm</span><span class="p">.</span><span class="nx">DB</span><span class="p">,</span><span class="w"> </span><span class="kt">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// 主库的 DSN</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">masterDSN</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&#34;root:password@tcp(master-db:3306)/dbname?charset=utf8mb4&amp;parseTime=True&amp;loc=Local&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// 从库的 DSN</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">slave1DSN</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&#34;root:password@tcp(slave1-db:3306)/dbname?charset=utf8mb4&amp;parseTime=True&amp;loc=Local&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">slave2DSN</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&#34;root:password@tcp(slave2-db:3306)/dbname?charset=utf8mb4&amp;parseTime=True&amp;loc=Local&#34;</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// 连接主库</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">db</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">gorm</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="nx">mysql</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="nx">masterDSN</span><span class="p">),</span><span class="w"> </span><span class="o">&amp;</span><span class="nx">gorm</span><span class="p">.</span><span class="nx">Config</span><span class="p">{})</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// 配置读写分离</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">db</span><span class="p">.</span><span class="nf">Use</span><span class="p">(</span><span class="nx">dbresolver</span><span class="p">.</span><span class="nf">Register</span><span class="p">(</span><span class="nx">dbresolver</span><span class="p">.</span><span class="nx">Config</span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="c1">// 主库，用于写操作</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">Sources</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="nx">gorm</span><span class="p">.</span><span class="nx">Dialector</span><span class="p">{</span><span class="nx">mysql</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="nx">masterDSN</span><span class="p">)},</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="c1">// 从库，用于读操作</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">Replicas</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="nx">gorm</span><span class="p">.</span><span class="nx">Dialector</span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nx">mysql</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="nx">slave1DSN</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">            </span><span class="nx">mysql</span><span class="p">.</span><span class="nf">Open</span><span class="p">(</span><span class="nx">slave2DSN</span><span class="p">),</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="p">},</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="c1">// 负载均衡策略，默认是随机选择一个从库</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nx">Policy</span><span class="p">:</span><span class="w"> </span><span class="nx">dbresolver</span><span class="p">.</span><span class="nx">RandomPolicy</span><span class="p">{},</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}).</span><span class="nf">SetMaxOpenConns</span><span class="p">(</span><span class="mi">10</span><span class="p">).</span><span class="nf">SetMaxIdleConns</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">db</span><span class="p">,</span><span class="w"> </span><span class="kc">nil</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="c1">// 模型</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">type</span><span class="w"> </span><span class="nx">User</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">ID</span><span class="w">   </span><span class="kt">uint</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">Name</span><span class="w"> </span><span class="kt">string</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="kd">func</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// 初始化数据库</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">db</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nf">initDB</span><span class="p">()</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="nx">err</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kc">nil</span><span class="w"> </span><span class="p">{</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">        </span><span class="nb">panic</span><span class="p">(</span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Sprintf</span><span class="p">(</span><span class="s">&#34;failed to connect to DB: %v&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="p">))</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// 写操作（插入数据）会使用主库</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">user</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="nx">User</span><span class="p">{</span><span class="nx">Name</span><span class="p">:</span><span class="w"> </span><span class="s">&#34;Alice&#34;</span><span class="p">}</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">db</span><span class="p">.</span><span class="nf">Create</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">user</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="c1">// 读操作（查询数据）会使用从库</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">users</span><span class="w"> </span><span class="p">[]</span><span class="nx">User</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">db</span><span class="p">.</span><span class="nf">Find</span><span class="p">(</span><span class="o">&amp;</span><span class="nx">users</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">    </span><span class="nx">fmt</span><span class="p">.</span><span class="nf">Println</span><span class="p">(</span><span class="s">&#34;用户数据：&#34;</span><span class="p">,</span><span class="w"> </span><span class="nx">users</span><span class="p">)</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w"></span><span class="p">}</span><span class="w">
+</span></span></span></code></pre></div><h3 id="nginx-负载均衡配置">Nginx 负载均衡配置<a href="#nginx-%e8%b4%9f%e8%bd%bd%e5%9d%87%e8%a1%a1%e9%85%8d%e7%bd%ae" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path>
+      <line x1="8" y1="12" x2="16" y2="12"></line>
+   </svg></a></h3>
+<p><strong>服务器 A 的 Nginx 配置：</strong></p>
+<ol>
+<li>新建 /etc/nginx/sites-available/load_balancer.conf：</li>
+</ol>
+<pre tabindex="0"><code>upstream go_backend {
+    server 127.0.0.1:8082;    # 本地 Go 服务
+    server B的公网IP:80;   # 负载到服务器B上的 Go 服务
+}
+
+server {
+    listen 8080;              # 对外暴露的端口
+    server_name A的公网IP;   # 服务器A的公网IP
+
+    location / {
+        proxy_pass http://go_backend;  # 反向代理到 go_backend 上游
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+</code></pre><ol start="2">
+<li>重启 Nginx：</li>
+</ol>
+<pre tabindex="0"><code>// 创建符号链接将这个站点启用
+sudo ln -s /etc/nginx/sites-available/load_balancer.conf /etc/nginx/sites-enabled/
+// 测试 Nginx 配置是否有错误
+sudo nginx -t
+// 重启
+sudo systemctl restart nginx
+</code></pre><p><strong>服务器 B 的 Nginx 配置：</strong></p>
+<ol>
+<li>新建 /etc/nginx/sites-available/load_balancer.conf：</li>
+</ol>
+<pre tabindex="0"><code>server {
+    listen 80;                # 对外暴露的端口
+    server_name B的公网IP;   # 服务器B的公网IP
+
+    location / {
+        proxy_pass http://127.0.0.1:8082;  # 反向代理到本地 Go 服务
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+</code></pre><ol start="2">
+<li>重启 Nginx：</li>
+</ol>
+<pre tabindex="0"><code>// 创建符号链接将这个站点启用
+sudo ln -s /etc/nginx/sites-available/load_balancer.conf /etc/nginx/sites-enabled/
+// 测试 Nginx 配置是否有错误
+sudo nginx -t
+// 重启
+sudo systemctl restart nginx
+</code></pre><h3 id="可能产生的错误">可能产生的错误<a href="#%e5%8f%af%e8%83%bd%e4%ba%a7%e7%94%9f%e7%9a%84%e9%94%99%e8%af%af" class="anchor" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3"></path>
+      <line x1="8" y1="12" x2="16" y2="12"></line>
+   </svg></a></h3>
+<ul>
+<li>在 mysql 创建用户的时候，注意权限问题，有的权限复制过来的结构不全，</li>
+</ul>
+<pre tabindex="0"><code>// 赋予用户&#39;replicator&#39;所有权限
+GRANT ALL PRIVILEGES ON *.* TO &#39;replicator&#39;@&#39;%&#39;;
+// 这里的 ALL PRIVILEGES 可以根据需求调整，如果你只需要备份和复制操作，可以改成更有限的权限，例如
+GRANT SELECT, RELOAD, LOCK TABLES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO &#39;replicator&#39;@&#39;%&#39;;
+// ON 后面可以写成指定的 database
+GRANT ALL PRIVILEGES ON databaseName.* TO &#39;replicator&#39;@&#39;%&#39;;
+// &#39;%&#39; 指允许所有 ip，可以替换成允许指定的 ip，生产环境建议这么做
+GRANT ALL PRIVILEGES ON *.* TO &#39;replicator&#39;@&#39;IP地址&#39;;
+</code></pre><ul>
+<li>注意防火墙配置，还有 mysql 配置的 bind-address 是否有限制</li>
+<li>从库一定不能填错主库的 File 和 Position</li>
+<li>从库在 <code>SHOW SLAVE STATUS\G;</code> 检查的时候，如果有 Last_SQL_Error 错误，也可以查看排查问题 <code>mysql&gt; select * from performance_schema.replication_applier_status_by_worker\G</code></li>
+<li>在配置基本都对的情况，有的时候 Slave_SQL_Running 为 NO，很有可能是用户权限不够导致的，或者从库和主库的表结构不一致，可以将主库的内容整体复制过来，也可以只复制表结构
+<pre tabindex="0"><code>// 手动复制主库
+mysqldump -h 主服务器IP -u用户名 -p密码 --all-databases &gt; 
+backup.sql
+// nodata
+mysqldump -h 主服务器IP -u用户名 -p密码 --no-data --all- 
+databases &gt; backup.sql
+// 指定某个database
+mysqldump -h 主服务器IP -u用户名 -p密码 -databaseName &gt; 
+backup.sql
+// 导入从库
+mysql -h 从服务器IP -u用户名 -p密码 &lt; backup.sql
+</code></pre></li>
+<li>nginx 负载均衡的时候注意不要端口冲突</li>
+<li>注意 nginx 的 default 配置，有的时候可能会占用 80 端口，可以将 default 文件删除，用我们自己的 conf 就好 <code>sudo rm /etc/nginx/sites-enabled/default</code></li>
+</ul>
+
+			</div>
+			<div class="human posts"><a href="https://brainmade.org/" target="_blank" rel="external noreferrer noopener"><abbr title=""><svg fill="#fff" width="128" height="40" viewBox="0 0 128 40" xmlns="http://www.w3.org/2000/svg">
+      <path
+         d="M26.306 39.391H11.665a1.28 1.28 0 0 1-1.28-1.28v-3.838H6.399a1.28 1.28 0 0 1-1.28-1.28v-5.336l-4.41-2.198a1.28 1.28 0 0 1-.493-1.855l4.904-7.357v-2.175C5.12 6.298 11.422 0 19.194 0s14.073 6.3 14.075 14.071c-.316 13.912-5.38 11.758-5.59 17.023l-.093 7.018a1.3 1.3 0 0 1-.375.905 1.27 1.27 0 0 1-.905.375zm-13.361-2.559h12.082l.143-7.27c-.132-3.329 5.858-4.122 5.54-15.368-.179-6.356-5.157-11.635-11.515-11.635S7.68 7.713 7.679 14.071v2.559c-.001.253-.075.5-.215.71l-4.315 6.471 3.822 1.91a1.28 1.28 0 0 1 .708 1.145v4.848h3.987a1.28 1.28 0 0 1 1.28 1.28z" />
+      <path
+         d="M20.186 29.111v-9.644c.059 0 .118.009.177.009 4.885-.006 8.525-4.506 7.511-9.284a1.19 1.19 0 0 0-.911-.911 7.67 7.67 0 0 0-9.049 5.67l-.033-.036a7.66 7.66 0 0 0-7.03-2.085 1.19 1.19 0 0 0-.911.91c-1.014 4.777 2.627 9.277 7.51 9.284.118 0 .246-.014.369-.02v6.106zm1.419-16.072a5.33 5.33 0 0 1 4.062-1.553 5.33 5.33 0 0 1-5.614 5.615 5.3 5.3 0 0 1 1.552-4.061zm-7.904 6.057a5.3 5.3 0 0 1-1.559-4.061 5.323 5.323 0 0 1 5.614 5.615 5.3 5.3 0 0 1-4.055-1.554m38.419-6.79q0 2.346-1.567 3.63-1.567 1.282-4.351 1.283h-7.669V0h7.016q2.807 0 4.242 1.1 1.446 1.087 1.446 3.226 0 1.467-.729 2.481-.718 1.002-2.197 1.357 1.86.244 2.828 1.32.979 1.063.979 2.823zm-4.112-7.491q0-1.161-.663-1.65-.652-.488-1.947-.488h-3.655v4.265h3.677q1.36 0 1.968-.525.62-.537.62-1.601m.892 7.209q0-2.42-3.089-2.42h-4.069v4.938h4.188q1.545 0 2.252-.624.718-.635.718-1.894m16.26 5.194-3.557-6.538h-3.764v6.538H54.63V0h7.658q2.741 0 4.231 1.332 1.49 1.32 1.49 3.8 0 1.808-.913 3.128-.914 1.308-2.47 1.723l4.144 7.235zm-.381-11.94q0-2.481-2.828-2.481h-4.112v5.083h4.199q1.349 0 2.045-.684.696-.685.696-1.919m16.785 11.94-1.36-4.399h-5.841l-1.359 4.399h-3.209L75.386 0h3.785l5.569 17.219zM77.278 2.651l-.066.269q-.109.44-.261 1.002c-.152.563-.725 2.436-1.871 6.184h4.405l-1.512-4.949-.468-1.662zm9.551 14.567V0h3.209v17.219zm15.53 0L95.681 3.959q.196 1.931.196 3.104v10.155h-2.849V0h3.666l6.777 13.37q-.196-1.846-.196-3.361V0h2.85v17.219zM52.63 39.375V28.331q.011-.351.115-3.015-.818 3.257-1.209 4.541l-2.925 9.518h-2.418l-2.925-9.518-1.232-4.541q.139 2.809.139 3.717v10.342h-3.017V22.313h4.548l2.902 9.543.253.92.553 2.289.725-2.736 2.983-10.015h4.526v17.063zm17.64 0-1.44-4.359h-6.184l-1.44 4.359h-3.397l5.919-17.063h4.007l5.896 17.063zm-4.537-14.434-.069.267q-.115.436-.277.993c-.162.557-.767 2.414-1.98 6.128h4.663l-1.601-4.905-.495-1.647zm24.577 5.776q0 2.64-.99 4.614-.979 1.961-2.787 3.003-1.796 1.042-4.122 1.042h-6.564V22.313h5.873q4.099 0 6.345 2.18 2.245 2.167 2.245 6.224m-3.42 0q0-2.748-1.359-4.19-1.359-1.453-3.881-1.453h-2.407v11.54h2.879q2.188 0 3.478-1.586t1.29-4.311m6 8.659V22.313h12.759v2.761h-9.362v4.287h8.66v2.761h-8.66v4.492h9.835v2.761zm15.75 0v-3.693h3.328v3.693zm12.445-12.149q2.082 0 3.662.781 1.58.78 2.422 2.235.833 1.454.833 3.393 0 2.98-1.845 4.676Q124.302 40 121.085 40q-3.208 0-5.005-1.688-1.798-1.688-1.798-4.695c0-3.007.606-3.57 1.817-4.694q1.817-1.696 4.986-1.696m0 2.702q-2.157 0-3.378.97-1.23.97-1.23 2.72 0 1.777 1.22 2.747 1.211.97 3.388.97 2.195 0 3.462-.988 1.258-.997 1.258-2.711 0-1.778-1.23-2.738-1.23-.97-3.491-.97m6.725-13.402-5.062 2.935v3.107h5.062v2.648h-13.331v-6.322q0-2.261 1.031-3.491 1.022-1.23 2.942-1.23 1.4 0 2.422.754 1.012.754 1.334 2.038l5.601-3.42zm-9.244.314q-1.92 0-1.921 2.334v3.393h3.936v-3.465q0-1.113-.53-1.688t-1.486-.575m7.249-10.915a6.5 6.5 0 0 0-.313-2.002q-.321-.969-.814-1.499h-1.845v3.088h-2.063V0h4.901q1.088 1.005 1.703 2.622a9.4 9.4 0 0 1 .615 3.375q0 3.088-1.798 4.748-1.808 1.661-5.119 1.661-3.292 0-5.043-1.67-1.76-1.67-1.76-4.803 0-4.452 3.473-5.664l.776 2.442q-1.012.395-1.533 1.238-.52.844-.52 1.984 0 1.867 1.192 2.837t3.416.97q2.261 0 3.501-.997 1.23-1.005 1.23-2.818z" />
+   </svg></abbr></a></div>
+
+<div class="related-posts thin">
+	<h2></h2>
+	<ul>
+	
+	<li><a href="/posts/go%E8%AF%AD%E8%A8%80%E4%B8%AD%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F%E7%9A%84%E5%A0%86%E6%A0%88/">Go 语言中局部变量的堆栈</a></li>
+	
+	<li><a href="/posts/go%E8%AF%AD%E8%A8%80%E4%B8%ADdefer%E7%9A%84%E5%8F%98%E9%87%8F%E5%BF%AB%E7%85%A7/">Go 语言中 defer 的变量快照</a></li>
+	
+	</ul>
+</div>
+
+		</article>
+		<aside id="toc">
+			<div class="toc-title"></div>
+			<nav id="TableOfContents">
+  <ul>
+    <li>
+      <ul>
+        <li><a href="#mysql-主从复制配置">MySQL 主从复制配置</a></li>
+        <li><a href="#应用层的读写分离">应用层的读写分离</a></li>
+        <li><a href="#nginx-负载均衡配置">Nginx 负载均衡配置</a></li>
+        <li><a href="#可能产生的错误">可能产生的错误</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+		</aside>
+		<div class="post-nav thin">
+			<a class="next-post" href="https://example.org/posts/docker%E6%90%AD%E5%BB%BArediscluster%E9%9B%86%E7%BE%A4/">
+				<span class="post-nav-label"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-left">
+      <line x1="19" y1="12" x2="5" y2="12"></line>
+      <polyline points="12 19 5 12 12 5"></polyline>
+   </svg>&nbsp;</span><br><span>Docker 搭建 Redis Cluster 集群</span>
+			</a>
+			<a class="prev-post" href="https://example.org/posts/go%E8%AF%AD%E8%A8%80%E4%B8%AD%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F%E7%9A%84%E5%A0%86%E6%A0%88/">
+				<span class="post-nav-label">&nbsp;<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right">
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+      <polyline points="12 5 19 12 12 19"></polyline>
+   </svg></span><br><span>Go 语言中局部变量的堆栈</span>
+			</a>
+		</div>
+		<div id="comments" class="thin"></div>
+	</main>
+<footer id="site-footer" class="section-inner thin animated fadeIn faster">
+<p>
+	&copy; 2025 <a href="https://example.org/">Winsome I Write</a>
+	&#183;  <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener">MIT License</a>
+	&#183; Made with <a href="https://gohugo.io/" target="_blank" rel="noopener" title="The world's fastest framework for building websites">Hugo</a> &amp; <a href="https://github.com/1bl4z3r/hermit-V2" target="_blank" rel="noopener" title="A fast, minimalist Hugo theme">Hermit-V2</a>
+	</p></footer>
+
+<a href="#" class="scroll-up"><svg class="scroll" xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="-2.4 -2.4 28.8 28.8"
+   stroke-width="0">
+   <g id="st-ring" stroke-linecap="round" stroke-linejoin="round" stroke-width=".96">
+      <circle cx="12" cy="12" r="10" />
+      <path
+         d="M15 14a1 1 0 0 1-.71-.29L12 11.41l-2.29 2.3a1 1 0 0 1-1.42-1.42l3-3a1 1 0 0 1 1.42 0l3 3a1 1 0 0 1 0 1.42A1 1 0 0 1 15 14" />
+   </g>
+   <circle id="st-circle" cx="12" cy="12" r="10" />
+   <path id="st-arrow"
+      d="M15 14a1 1 0 0 1-.71-.29L12 11.41l-2.29 2.3a1 1 0 0 1-1.42-1.42l3-3a1 1 0 0 1 1.42 0l3 3a1 1 0 0 1 0 1.42A1 1 0 0 1 15 14Z" />
+</svg></a>
+<noscript>
+    <a href="#" class="scroll-up show"><svg class="scroll" xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="-2.4 -2.4 28.8 28.8"
+   stroke-width="0">
+   <g id="st-ring" stroke-linecap="round" stroke-linejoin="round" stroke-width=".96">
+      <circle cx="12" cy="12" r="10" />
+      <path
+         d="M15 14a1 1 0 0 1-.71-.29L12 11.41l-2.29 2.3a1 1 0 0 1-1.42-1.42l3-3a1 1 0 0 1 1.42 0l3 3a1 1 0 0 1 0 1.42A1 1 0 0 1 15 14" />
+   </g>
+   <circle id="st-circle" cx="12" cy="12" r="10" />
+   <path id="st-arrow"
+      d="M15 14a1 1 0 0 1-.71-.29L12 11.41l-2.29 2.3a1 1 0 0 1-1.42-1.42l3-3a1 1 0 0 1 1.42 0l3 3a1 1 0 0 1 0 1.42A1 1 0 0 1 15 14Z" />
+</svg></a>
+</noscript>
+<script async src="https://example.org/js/scrollwatcher.min.d1ed6600a7470c80aa1291ec4def14df9eaf4eda42bf9e178bf9944c457b5bcc.js" integrity="sha256-0e1mAKdHDICqEpHsTe8U356vTtpCv54Xi/mUTEV7W8w=" crossorigin="anonymous"></script>
+<script async src="https://example.org/js/bundle.min.a2910447d5c22e84c4b04382d8c10c056b2b9d3e15c64d1fa04882359d61afd3.js" integrity="sha256-opEER9XCLoTEsEOC2MEMBWsrnT4Vxk0foEiCNZ1hr9M=" crossorigin="anonymous"></script><script async src="https://example.org/js/link-share.min.24409a4f6e5537d70ffc55ec8f9192208d718678cb8638585342423020b37f39.js" integrity="sha256-JECaT25VN9cP/FXsj5GSII1xhnjLhjhYU0JCMCCzfzk=" crossorigin="anonymous"></script></body>
+</html>
