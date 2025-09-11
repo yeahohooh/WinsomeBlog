@@ -2,18 +2,18 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Tags on Winsome I Write</title>
-    <link>http://localhost:1313/tags/</link>
+    <link>https://yeahohooh.github.io/tags/</link>
     <description>Recent content in Tags on Winsome I Write</description>
     <generator>Hugo</generator>
     <language>zh-CN</language>
     <copyright>This work is licensed under the MIT License.</copyright>
     <lastBuildDate>Fri, 01 Nov 2024 18:40:15 +0800</lastBuildDate>
-    <atom:link href="http://localhost:1313/tags/index.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="https://yeahohooh.github.io/tags/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Golang</title>
-      <link>http://localhost:1313/tags/golang/</link>
+      <link>https://yeahohooh.github.io/tags/golang/</link>
       <pubDate>Fri, 01 Nov 2024 18:40:15 +0800</pubDate>
-      <guid>http://localhost:1313/tags/golang/</guid>
+      <guid>https://yeahohooh.github.io/tags/golang/</guid>
       <description></description>
     </item>
   </channel>
