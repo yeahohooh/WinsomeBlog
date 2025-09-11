@@ -1,4 +1,5 @@
-baseURL = 'https://yeahohooh.github.io/'
+baseURL = 'https://yeahohooh.github.io/WinsomeBlog/'
+relativeURLs = true
 languageCode = 'zh-CN'
 title = 'Winsome I Write'
 theme = "hermit-v2"
