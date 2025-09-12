@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>IOS on Winsome I Write</title>
+    <link>https://yeahohooh.github.io/tags/ios/</link>
+    <description>Recent content in IOS on Winsome I Write</description>
+    <generator>Hugo</generator>
+    <language>zh-CN</language>
+    <copyright>This work is licensed under the MIT License.</copyright>
+    <lastBuildDate>Fri, 14 Apr 2023 10:29:09 +0800</lastBuildDate>
+    <atom:link href="https://yeahohooh.github.io/tags/ios/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Mac 打包 FFmpeg二进制文件 双架构流程</title>
+      <link>https://yeahohooh.github.io/posts/mac%E6%89%93%E5%8C%85ffmpeg%E4%BA%8C%E8%BF%9B%E5%88%B6%E6%96%87%E4%BB%B6%E5%8F%8C%E6%9E%B6%E6%9E%84%E6%B5%81%E7%A8%8B/</link>
+      <pubDate>Fri, 14 Apr 2023 10:29:09 +0800</pubDate>
+      <guid>https://yeahohooh.github.io/posts/mac%E6%89%93%E5%8C%85ffmpeg%E4%BA%8C%E8%BF%9B%E5%88%B6%E6%96%87%E4%BB%B6%E5%8F%8C%E6%9E%B6%E6%9E%84%E6%B5%81%E7%A8%8B/</guid>
+      <description>&lt;p&gt;首先下载FFmpeg源码 git clone &lt;a href=&#34;https://github.com/FFmpeg/FFmpeg.git&#34;&gt;https://github.com/FFmpeg/FFmpeg.git&lt;/a&gt;&lt;/p&gt;&#xA;&lt;blockquote&gt;&#xA;&lt;p&gt;ps:这里也有打包好的，不想搞下面的可以直接去这里下载：https://evermeet.cx/ffmpeg/&lt;/p&gt;&lt;/blockquote&gt;&#xA;&lt;p&gt;打包arm64和x86_64需要两个对应环境的brew提供支持。&lt;/p&gt;&#xA;&lt;p&gt;安装 Homebrew 这个网站写的很详细：https://brew.idayer.com&lt;/p&gt;&#xA;&lt;h2 id=&#34;安装-arm-版-homebrew&#34;&gt;安装 ARM 版 Homebrew&lt;a href=&#34;#%e5%ae%89%e8%a3%85-arm-%e7%89%88-homebrew&#34; class=&#34;anchor&#34; aria-hidden=&#34;true&#34;&gt;&lt;svg xmlns=&#34;http://www.w3.org/2000/svg&#34; viewBox=&#34;0 0 24 24&#34; fill=&#34;none&#34; stroke=&#34;currentColor&#34; stroke-width=&#34;2&#34;&#xA;      stroke-linecap=&#34;round&#34; stroke-linejoin=&#34;round&#34;&gt;&#xA;      &lt;path d=&#34;M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3&#34;&gt;&lt;/path&gt;&#xA;      &lt;line x1=&#34;8&#34; y1=&#34;12&#34; x2=&#34;16&#34; y2=&#34;12&#34;&gt;&lt;/line&gt;&#xA;   &lt;/svg&gt;&lt;/a&gt;&lt;/h2&gt;&#xA;&lt;p&gt;ARM版 Homebrew 最终被安装在/opt/homebrew路径下。&lt;/p&gt;&#xA;&lt;p&gt;直接执行：/bin/bash -c &amp;ldquo;$(curl -fsSL &lt;a href=&#34;https://gitee.com/ineo6/homebrew-install/raw/master/install.sh)%22&#34;&gt;https://gitee.com/ineo6/homebrew-install/raw/master/install.sh)&amp;quot;&lt;/a&gt;&lt;/p&gt;&#xA;&lt;p&gt;添加环境：export PATH=&amp;quot;/opt/homebrew/bin:$PATH&amp;rdquo;&lt;/p&gt;&#xA;&lt;h2 id=&#34;安装-x86-版-homebrew&#34;&gt;安装 X86 版 Homebrew&lt;a href=&#34;#%e5%ae%89%e8%a3%85-x86-%e7%89%88-homebrew&#34; class=&#34;anchor&#34; aria-hidden=&#34;true&#34;&gt;&lt;svg xmlns=&#34;http://www.w3.org/2000/svg&#34; viewBox=&#34;0 0 24 24&#34; fill=&#34;none&#34; stroke=&#34;currentColor&#34; stroke-width=&#34;2&#34;&#xA;      stroke-linecap=&#34;round&#34; stroke-linejoin=&#34;round&#34;&gt;&#xA;      &lt;path d=&#34;M15 7h3a5 5 0 0 1 5 5 5 5 0 0 1-5 5h-3m-6 0H6a5 5 0 0 1-5-5 5 5 0 0 1 5-5h3&#34;&gt;&lt;/path&gt;&#xA;      &lt;line x1=&#34;8&#34; y1=&#34;12&#34; x2=&#34;16&#34; y2=&#34;12&#34;&gt;&lt;/line&gt;&#xA;   &lt;/svg&gt;&lt;/a&gt;&lt;/h2&gt;&#xA;&lt;p&gt;X86版 Homebrew 最终被安装在/usr/local路径下。&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>
